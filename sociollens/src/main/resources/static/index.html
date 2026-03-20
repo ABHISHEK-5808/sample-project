@@ -1,0 +1,676 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SocioLens | Image Recommendation System</title>
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Space+Mono:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <style>
+        :root {
+            --bg-dark: #0a0f1e;
+            --bg-panel: rgba(16, 24, 46, 0.7);
+            --accent-cyan: #00d4ff;
+            --accent-amber: #ff9500;
+            --text-main: #e2e8f0;
+            --text-muted: #94a3b8;
+            --border-color: rgba(255, 255, 255, 0.1);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-dark);
+            color: var(--text-main);
+            height: 100vh;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        h1, h2, h3, .heading-font {
+            font-family: 'Space Mono', monospace;
+        }
+
+        /* Top Header */
+        header {
+            padding: 1rem 2rem;
+            border-bottom: 1px solid var(--border-color);
+            background: rgba(10, 15, 30, 0.8);
+            backdrop-filter: blur(10px);
+            z-index: 100;
+        }
+
+        header h1 {
+            color: var(--accent-cyan);
+            font-size: 1.5rem;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        header h1 span {
+            color: var(--text-main);
+            font-size: 1rem;
+            font-family: 'Inter', sans-serif;
+            font-weight: 300;
+            margin-top: 5px;
+        }
+
+        /* Layout Container */
+        .container {
+            display: flex;
+            flex: 1;
+            overflow: hidden;
+        }
+
+        /* Glassmorphism Panels */
+        .panel {
+            background: var(--bg-panel);
+            backdrop-filter: blur(12px);
+            border: 1px solid var(--border-color);
+            margin: 1rem;
+            border-radius: 16px;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        /* Left Panel - Profile Form */
+        .left-panel {
+            width: 320px;
+            flex-shrink: 0;
+            padding: 1.5rem;
+            overflow-y: auto;
+        }
+
+        .left-panel::-webkit-scrollbar { width: 6px; }
+        .left-panel::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.2); border-radius: 3px; }
+
+        .form-group {
+            margin-bottom: 1.2rem;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 0.5rem;
+            color: var(--accent-cyan);
+            font-size: 0.85rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            font-family: 'Space Mono', monospace;
+        }
+
+        input[type="text"], input[type="number"], select {
+            width: 100%;
+            padding: 0.8rem;
+            background: rgba(0, 0, 0, 0.2);
+            border: 1px solid var(--border-color);
+            color: white;
+            border-radius: 8px;
+            font-family: 'Inter', sans-serif;
+            outline: none;
+            transition: border-color 0.3s ease;
+        }
+        
+        input:focus, select:focus {
+            border-color: var(--accent-cyan);
+        }
+        
+        select[multiple] {
+            height: 120px;
+            padding: 0.5rem;
+        }
+        select option {
+            padding: 0.4rem;
+            border-radius: 4px;
+            background: var(--bg-dark);
+            color: white;
+        }
+        select option:checked {
+            background: var(--accent-cyan);
+            color: #000;
+        }
+
+        button {
+            width: 100%;
+            padding: 1rem;
+            background: linear-gradient(135deg, var(--accent-cyan) 0%, #0077ff 100%);
+            color: #000;
+            border: none;
+            border-radius: 8px;
+            font-family: 'Space Mono', monospace;
+            font-weight: 700;
+            cursor: pointer;
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+            margin-top: 1rem;
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0, 212, 255, 0.3);
+        }
+
+        button:active {
+            transform: translateY(0);
+        }
+
+        /* Center Panel - Feed */
+        .center-panel {
+            flex: 1;
+            padding: 1.5rem;
+            overflow-y: auto;
+            position: relative;
+        }
+        
+        .center-panel::-webkit-scrollbar { width: 6px; }
+        .center-panel::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.2); border-radius: 3px; }
+
+        .panel-header {
+            margin-bottom: 1.5rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .panel-header h2 {
+            font-size: 1.2rem;
+            color: white;
+        }
+
+        .spinner {
+            display: none;
+            width: 40px;
+            height: 40px;
+            border: 3px solid rgba(0, 212, 255, 0.3);
+            border-radius: 50%;
+            border-top-color: var(--accent-cyan);
+            animation: spin 1s ease-in-out infinite;
+            margin: 2rem auto;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+            gap: 1.5rem;
+        }
+
+        .card {
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            overflow: hidden;
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+            position: relative;
+            opacity: 0;
+            transform: translateY(20px);
+            animation: fadeInUp 0.5s forwards;
+        }
+
+        @keyframes fadeInUp {
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.5);
+            border-color: rgba(255, 255, 255, 0.3);
+        }
+
+        .card-img {
+            width: 100%;
+            height: 160px;
+            object-fit: cover;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .card-body {
+            padding: 1rem;
+        }
+
+        .card-title {
+            font-size: 1rem;
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .card-category {
+            display: inline-block;
+            font-size: 0.75rem;
+            padding: 0.2rem 0.6rem;
+            background: rgba(255, 149, 0, 0.2);
+            color: var(--accent-amber);
+            border-radius: 12px;
+            margin-bottom: 0.8rem;
+            font-family: 'Space Mono', monospace;
+        }
+
+        .card-score {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            font-size: 0.85rem;
+            color: var(--text-muted);
+        }
+        
+        .score-badge {
+            background: rgba(0, 212, 255, 0.15);
+            color: var(--accent-cyan);
+            padding: 0.2rem 0.6rem;
+            border-radius: 4px;
+            font-weight: 600;
+            font-family: 'Space Mono', monospace;
+        }
+
+        .card-attention-hover {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 160px;
+            background: rgba(10, 15, 30, 0.9);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            padding: 1rem;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+            backdrop-filter: blur(4px);
+        }
+
+        .card:hover .card-attention-hover {
+            opacity: 1;
+        }
+
+        .att-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 0.5rem;
+            font-size: 0.8rem;
+        }
+        .att-label { color: var(--text-muted); }
+        .att-val-1 { color: var(--accent-cyan); font-weight: 600; }
+        .att-val-2 { color: var(--accent-amber); font-weight: 600; }
+
+        /* Right Panel - Visualizer */
+        .right-panel {
+            width: 350px;
+            flex-shrink: 0;
+            padding: 1.5rem;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .chart-container {
+            flex: 1;
+            position: relative;
+            margin-top: 1rem;
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 12px;
+            padding: 1rem;
+            border: 1px solid var(--border-color);
+        }
+
+        /* Responsive */
+        @media (max-width: 1024px) {
+            .right-panel { display: none; }
+        }
+        @media (max-width: 768px) {
+            .container { flex-direction: column; overflow: auto; }
+            .left-panel, .center-panel { width: auto; margin: 0.5rem; flex: none; }
+            .left-panel { border-radius: 12px; }
+            body { overflow: auto; }
+        }
+
+        #error-msg {
+            color: #ff4d4d;
+            background: rgba(255, 77, 77, 0.1);
+            padding: 1rem;
+            border-radius: 8px;
+            margin-bottom: 1rem;
+            display: none;
+            border: 1px solid #ff4d4d;
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <h1>SocioLens <span>Contextual Image Recommender</span></h1>
+    </header>
+
+    <div class="container">
+        <!-- Left Panel: Profile Input -->
+        <div class="panel left-panel">
+            <h2 class="panel-header" style="font-size: 1.2rem; color: white; margin-bottom: 1.5rem;">User Profile</h2>
+            
+            <form id="profile-form">
+                <div class="form-group">
+                    <label>Name</label>
+                    <input type="text" id="p-name" value="Alex Traveler" required>
+                </div>
+                <div class="form-group">
+                    <label>Age</label>
+                    <input type="number" id="p-age" value="28" required>
+                </div>
+                <div class="form-group">
+                    <label>Interests (Ctrl+Click)</label>
+                    <select id="p-interests" multiple required>
+                        <option value="travel" selected>Travel</option>
+                        <option value="food">Food</option>
+                        <option value="technology" selected>Technology</option>
+                        <option value="sports">Sports</option>
+                        <option value="art">Art</option>
+                        <option value="nature">Nature</option>
+                        <option value="fashion">Fashion</option>
+                        <option value="science">Science</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Location</label>
+                    <select id="p-location">
+                        <option value="urban">Urban</option>
+                        <option value="rural">Rural</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Active Time</label>
+                    <select id="p-time">
+                        <option value="morning">Morning</option>
+                        <option value="afternoon">Afternoon</option>
+                        <option value="evening" selected>Evening</option>
+                        <option value="night">Night</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Mood</label>
+                    <select id="p-mood">
+                        <option value="calm">Calm</option>
+                        <option value="energetic" selected>Energetic</option>
+                    </select>
+                </div>
+
+                <button type="submit">Get Recommendations</button>
+            </form>
+        </div>
+
+        <!-- Center Panel: Feed -->
+        <div class="panel center-panel">
+            <div id="error-msg"></div>
+            <div class="panel-header">
+                <h2>Image Feed <span id="feed-count" style="font-size: 0.9rem; color: var(--text-muted); font-family: 'Inter', sans-serif; font-weight: normal;">(0 images)</span></h2>
+            </div>
+            
+            <div class="spinner" id="loading"></div>
+            
+            <div class="grid" id="image-grid">
+                <!-- Cards injected here via JS -->
+            </div>
+        </div>
+
+        <!-- Right Panel: Visualizer -->
+        <div class="panel right-panel">
+            <h2 class="panel-header" style="font-size: 1.2rem; margin-bottom: 0;">Attention Metrics</h2>
+            <p style="font-size: 0.8rem; color: var(--text-muted); margin-top: 0.5rem;">Hierarchical Attention Model (HAM)</p>
+            
+            <div class="chart-container">
+                <canvas id="attentionChart"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = 'http://localhost:8080/api';
+        let chartInstance = null;
+
+        // Elements
+        const grid = document.getElementById('image-grid');
+        const spinner = document.getElementById('loading');
+        const form = document.getElementById('profile-form');
+        const errorMsg = document.getElementById('error-msg');
+        const feedCount = document.getElementById('feed-count');
+
+        // Initial Load - Fetch standard images
+        window.addEventListener('DOMContentLoaded', () => {
+            initChart();
+            fetchAllImages();
+        });
+
+        // Form Submit
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            // Build profile object
+            const interests = Array.from(document.getElementById('p-interests').selectedOptions).map(opt => opt.value);
+            
+            const profile = {
+                name: document.getElementById('p-name').value,
+                age: parseInt(document.getElementById('p-age').value),
+                interests: interests,
+                location: document.getElementById('p-location').value,
+                activeTime: document.getElementById('p-time').value,
+                mood: document.getElementById('p-mood').value
+            };
+
+            showLoading(true);
+            try {
+                // Post to /api/recommend
+                // Note: The controller handles saving/updating profile in /api/recommend internally
+                // but requirements say: "POST profile to /api/profile, then POST to /api/recommend".
+                // We will do two calls to strictly follow instructions.
+                
+                const profileRes = await fetch(`${API_BASE}/profile`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(profile)
+                });
+                
+                if (!profileRes.ok) throw new Error('Failed to save profile');
+                const savedProfile = await profileRes.json();
+
+                const recRes = await fetch(`${API_BASE}/recommend`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(savedProfile)
+                });
+                
+                if (!recRes.ok) throw new Error('Failed to fetch recommendations');
+                const recommendations = await recRes.json();
+
+                renderRecommendations(recommendations);
+                updateChart(recommendations);
+
+            } catch (err) {
+                showError(err.message);
+            } finally {
+                showLoading(false);
+            }
+        });
+
+        async function fetchAllImages() {
+            showLoading(true);
+            try {
+                const res = await fetch(`${API_BASE}/images`);
+                if (!res.ok) throw new Error('Unable to fetch images from backend. Is the server running?');
+                const images = await res.json();
+                
+                // For initial display, map to a dummy recommendation structure
+                const dummyRecs = images.map(img => ({
+                    image: img,
+                    finalScore: 0,
+                    attentionLevel1: 0,
+                    attentionLevel2: 0
+                }));
+                
+                renderRecommendations(dummyRecs, true);
+            } catch (err) {
+                showError(err.message);
+            } finally {
+                showLoading(false);
+            }
+        }
+
+        function renderRecommendations(recs, isInitial = false) {
+            grid.innerHTML = '';
+            feedCount.innerText = `(${recs.length} images)`;
+            
+            recs.forEach((rec, index) => {
+                const img = rec.image;
+                
+                // Staggered animation delay
+                const delay = index * 0.05;
+                
+                const scoreDisplay = isInitial ? 
+                    `<span class="card-score">Unranked</span>` : 
+                    `<div class="card-score">
+                        <span>Score:</span>
+                        <span class="score-badge">${rec.finalScore.toFixed(3)}</span>
+                     </div>`;
+                     
+                const hoverContent = isInitial ? 
+                    `<div class="card-attention-hover">
+                        <p style="text-align: center; color: var(--text-muted);">Get recommendations to see attention focus</p>
+                    </div>` :
+                    `<div class="card-attention-hover">
+                        <p style="margin-bottom: 0.8rem; font-size: 0.85rem; text-align: center;">Attention Focus</p>
+                        <div class="att-row">
+                            <span class="att-label">L1 (Tags):</span>
+                            <span class="att-val-1">${(rec.attentionLevel1 * 100).toFixed(1)}%</span>
+                        </div>
+                        <div class="att-row">
+                            <span class="att-label">L2 (Context):</span>
+                            <span class="att-val-2">${(rec.attentionLevel2 * 100).toFixed(1)}%</span>
+                        </div>
+                    </div>`;
+
+                const cardHtml = `
+                    <div class="card" style="animation-delay: ${delay}s">
+                        <img src="${img.url}" alt="${img.title}" class="card-img" crossorigin="anonymous">
+                        ${hoverContent}
+                        <div class="card-body">
+                            <span class="card-category">${img.category.toUpperCase()}</span>
+                            <h3 class="card-title" title="${img.title}">${img.title}</h3>
+                            ${scoreDisplay}
+                        </div>
+                    </div>
+                `;
+                
+                grid.insertAdjacentHTML('beforeend', cardHtml);
+            });
+        }
+
+        function initChart() {
+            const ctx = document.getElementById('attentionChart').getContext('2d');
+            
+            Chart.defaults.color = '#94a3b8';
+            Chart.defaults.font.family = "'Inter', sans-serif";
+            
+            chartInstance = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: [],
+                    datasets: [
+                        {
+                            label: 'L1: Tag Attention (x0.6)',
+                            backgroundColor: '#00d4ff', // accent-cyan
+                            data: [],
+                            barPercentage: 0.6,
+                            categoryPercentage: 0.8
+                        },
+                        {
+                            label: 'L2: Context Attention (x0.4)',
+                            backgroundColor: '#ff9500', // accent-amber
+                            data: [],
+                            barPercentage: 0.6,
+                            categoryPercentage: 0.8
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    indexAxis: 'y', // Horizontal bars
+                    plugins: {
+                        legend: {
+                            position: 'bottom',
+                            labels: {
+                                padding: 20,
+                                usePointStyle: true,
+                                pointStyle: 'circle'
+                            }
+                        },
+                        tooltip: {
+                            mode: 'index',
+                            intersect: false,
+                            backgroundColor: 'rgba(10, 15, 30, 0.9)',
+                            titleFont: { family: "'Space Mono', monospace" }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            stacked: true,
+                            beginAtZero: true,
+                            max: 1.0,
+                            grid: { color: 'rgba(255, 255, 255, 0.05)' }
+                        },
+                        y: {
+                            stacked: true,
+                            grid: { display: false },
+                            ticks: {
+                                callback: function(value, index, values) {
+                                    // Truncate long labels
+                                    const label = this.getLabelForValue(value);
+                                    return label.length > 12 ? label.substr(0, 10) + '...' : label;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        function updateChart(recommendations) {
+            // Take top 10 for chart to avoid crowding
+            const topRecs = recommendations.slice(0, 10);
+            
+            const labels = topRecs.map(r => r.image.title);
+            const l1Data = topRecs.map(r => r.attentionLevel1 * 0.6); // Scale by weight for visual truth
+            const l2Data = topRecs.map(r => r.attentionLevel2 * 0.4);
+
+            chartInstance.data.labels = labels;
+            chartInstance.data.datasets[0].data = l1Data;
+            chartInstance.data.datasets[1].data = l2Data;
+            chartInstance.update();
+        }
+
+        function showLoading(show) {
+            spinner.style.display = show ? 'block' : 'none';
+            if (show) errorMsg.style.display = 'none';
+        }
+
+        function showError(msg) {
+            errorMsg.innerText = msg;
+            errorMsg.style.display = 'block';
+            console.error(msg);
+        }
+    </script>
+</body>
+</html>
